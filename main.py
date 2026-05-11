@@ -1,3 +1,5 @@
+import sys
+
 from src.manager import Manager
 from src.models import Parameters
 
@@ -63,11 +65,47 @@ def display_tenants(manager):
                 print(f"      • {format_currency(transfer.amount_pln):>15}  Date: {transfer.date}  Period: {month_year}")
 
 
+def display_settlement(manager, apartment_key: str, year: int, month: int):
+    print_section_header(f"SETTLEMENT: {apartment_key} / {month}/{year}")
+    
+    settlement = manager.get_settlement(apartment_key, year, month)
+    if settlement is None:
+        print("No settlement found for the specified apartment or month.")
+        return
+    
+    print(f"Apartment: {settlement.apartment}")
+    print(f"Period: {settlement.month}/{settlement.year}")
+    print(f"Total due: {format_currency(settlement.total_due_pln)}")
+    
+    tenants_settlements = manager.create_tenants_settlements(settlement)
+    if tenants_settlements:
+        print_subsection_header("Tenant shares")
+        for tenant_settlement in tenants_settlements:
+            print(f"{tenant_settlement.tenant}: {format_currency(tenant_settlement.total_due_pln)}")
+    
+    debtors = manager.get_debtors(apartment_key, month, year)
+    print_subsection_header("Debtors")
+    if debtors:
+        for debtor in debtors:
+            print(f"{debtor}")
+    else:
+        print("No debtors.")
+
+
 if __name__ == '__main__':
     parameters = Parameters()
     manager = Manager(parameters)
-
-    display_apartments(manager)
-    display_tenants(manager)
+    
+    if len(sys.argv) == 4:
+        try:
+            apartment_key = sys.argv[1]
+            year = int(sys.argv[2])
+            month = int(sys.argv[3])
+            display_settlement(manager, apartment_key, year, month)
+        except (ValueError, IndexError):
+            print("Invalid arguments.")
+    else:
+        display_apartments(manager)
+        display_tenants(manager)
     
     print(f"\n{'=' * 70}\n")

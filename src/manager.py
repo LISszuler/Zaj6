@@ -1,5 +1,5 @@
 from src.models import Apartment, Bill, Parameters, Tenant, TenantSettlement, Transfer, ApartmentSettlement
-from typing import List, Tuple
+from typing import List
 
 class Manager:
     def __init__(self, parameters: Parameters):
@@ -70,5 +70,45 @@ class Manager:
                 total_due_pln=apartment_settlement.total_due_pln / len(tenants_in_apartment)
             )
         for tenant in tenants_in_apartment ] 
+    
+    def get_annual_report(self, apartment_key: str, year: int) -> list:
+        if apartment_key not in self.apartments:
+            return []
+
+        apartment_report = []
+        for month in range(1, 13):
+            settlement = self.get_settlement(apartment_key, year, month)
+            if settlement is not None:
+                tenants_settlements = self.create_tenants_settlements(settlement)
+                apartment_report.append({
+                    "month": month,
+                    "total_due_pln": settlement.total_due_pln,
+                    "tenants": [ts.tenant for ts in tenants_settlements],
+                    "tenant_dues": [ts.total_due_pln for ts in tenants_settlements]
+                })
+        return apartment_report
+    
+    def get_debtors(self, apartment_key: str, month: int, year: int) -> List[str]:
+        if apartment_key not in self.apartments:
+            return []
+        
+        debtors = []
+        tenants_in_apartment = [
+            (tenant_key, tenant)
+            for tenant_key, tenant in self.tenants.items()
+            if tenant.apartment == apartment_key
+        ]
+        
+        for tenant_key, tenant in tenants_in_apartment:
+            total_transfers = sum(
+                transfer.amount_pln for transfer in self.transfers
+                if transfer.tenant == tenant_key and 
+                   transfer.settlement_year == year and 
+                   transfer.settlement_month == month
+            )
+            if total_transfers < tenant.rent_pln:
+                debtors.append(tenant.name)
+        
+        return debtors
     
     
